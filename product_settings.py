@@ -9,7 +9,7 @@ def return_data(path):
 
 def write_data(path,data):
     with open(path, "w") as file:
-        json.dump(data, file, sort_keys=True, indent=4)
+        json.dump(data, file, indent=4, sort_keys=True)
     file.close()
 
 def set_data(path, val1, val2):

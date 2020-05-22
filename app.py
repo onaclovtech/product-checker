@@ -5,11 +5,12 @@
 import requests
 import time
 import json
+import random
 from datetime import datetime
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
-import webhook_settings
-import product_settings
+#import webhook_settings
+#import product_settings
 from threading import Thread
 from selenium import webdriver
 from chromedriver_py import binary_path as driver_path
@@ -26,21 +27,44 @@ gamestoplist = []
 
 #Function for start-up menu
 
+MAX_PRICE = 315
+
 def menu():
     webhook_dict = return_data("./data/webhooks.json")
     urldict = return_data("./data/products.json")
-    print("Select an Option: \n 1: Edit Webhooks \n 2: Edit Product URLs \n 3: Run the product tracker \n")
-    val = input("Enter # (1-3)")
-    if val == "1":
-        webhook_settings.main()
-        menu()
-    elif val == "2":
-        product_settings.main()
-        menu()
-    elif val == "3":
-        print("\n \n Starting Product Tracker! \n \n")
-    else:
-        menu()
+    #print("Select an Option: \n 1: Edit Webhooks \n 2: Edit Product URLs \n 3: Run the product tracker \n")
+    #val = input("Enter # (1-3)")
+#    if val == "1":
+ #       webhook_settings.main()
+  #      menu()
+ #   elif val == "2":
+  #      product_settings.main()
+   #     menu()
+    #if val == "3":
+    #    print("\n \n Starting Product Tracker! \n \n")
+    #else:
+    #    menu()
+
+
+def send_email(message):
+    # using SendGrid's Python Library
+    # https://github.com/sendgrid/sendgrid-python
+    import os
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
+    print ("Sending Email")
+    message = Mail(
+                    from_email='tyson@onaclovtech.com',
+                    to_emails='onaclov2000@gmail.com',
+                    subject='In Stock',
+                    html_content=message    )
+    try:
+        sg = SendGridAPIClient("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")
+        response = sg.send(message)
+    except Exception as e:
+        print ("Error Sending Message ")
+        print(e)
+
 
 def return_data(path):
     with open(path,"r") as file:
@@ -65,7 +89,7 @@ class Amazon:
         self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         options = webdriver.ChromeOptions()
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         options.add_argument('log-level=3')
@@ -87,11 +111,9 @@ class Amazon:
 
             if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
                 print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
-                slack_data = {'content': "[" + current_time + "] " +  title + " in stock at Amazon - " + url}
+                slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " +  title + " in stock at Amazon - " + url}
                 if stockdict.get(url) == 'False':
-                    response = requests.post(
-                    webhook_url, data=json.dumps(slack_data),
-                    headers={'Content-Type': 'application/json'})
+                    send_message(slack_data)                    
                 stockdict.update({url: 'True'})
             else:
                 print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
@@ -105,7 +127,7 @@ class Gamestop:
         self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         options = webdriver.ChromeOptions()
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         options.add_argument('log-level=3')
@@ -125,11 +147,9 @@ class Gamestop:
 
         if "ADD TO CART" in status_text:
             print("[" + current_time + "] " + "In Stock: (Gamestop.com) " + title + " - " + url)
-            slack_data = {'content': "[" + current_time + "] " +  title + " in stock at Gamestop - " + url}
+            slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " +  title + " in stock at Gamestop - " + url}
             if stockdict.get(url) == 'False':
-                response = requests.post(
-                webhook_url, data=json.dumps(slack_data),
-                headers={'Content-Type': 'application/json'})
+                send_message(slack_data)
             stockdict.update({url: 'True'})
         else:
             print("[" + current_time + "] " + "Sold Out: (Gamestop.com) " + title)
@@ -143,21 +163,25 @@ class Target:
         self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         page = requests.get(url)
         al = page.text
         title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
         #print(title)
-        if "Temporarily out of stock" in page.text:
+        if "out of stock" in page.text.lower():
             print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
             stockdict.update({url: 'False'})
         else: 
+            f = open('temp.html', 'w')
+            f.write(page.text)
+            f.close()
+            f = open('target.txt', 'a')
+            f.write("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url + "\n")
+            f.close()
             print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
-            slack_data = {'content': "[" + current_time + "] " +  title + " in stock at Target - " + url}
+            slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " +  title + " in stock at Target - " + url}
             if stockdict.get(url) == 'False':
-                response = requests.post(
-                webhook_url, data=json.dumps(slack_data),
-                headers={'Content-Type': 'application/json'})
+                send_message(slack_data)
             stockdict.update({url: 'True'})
         #print(stockdict)
 
@@ -168,7 +192,7 @@ class BestBuy:
         self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         url = "https://www.bestbuy.com/api/tcfb/model.json?paths=%5B%5B%22shop%22%2C%22scds%22%2C%22v2%22%2C%22page%22%2C%22tenants%22%2C%22bbypres%22%2C%22pages%22%2C%22globalnavigationv5sv%22%2C%22header%22%5D%2C%5B%22shop%22%2C%22buttonstate%22%2C%22v5%22%2C%22item%22%2C%22skus%22%2C" + sku + "%2C%22conditions%22%2C%22NONE%22%2C%22destinationZipCode%22%2C%22%2520%22%2C%22storeId%22%2C%22%2520%22%2C%22context%22%2C%22cyp%22%2C%22addAll%22%2C%22false%22%5D%5D&method=get"
         headers2 = {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -190,14 +214,18 @@ class BestBuy:
         elif stock_status == "CHECK_STORES":
             print(product_name + " sold out @ BestBuy (check stores status)")
             stockdict.update({sku: 'False'})
+            f = open('bestbuy.txt', 'a')
+            f.write("[" + current_time + "] " + product_name + " sold out @ BestBuy (check stores status \n")
+            f.close()
         else: 
             if stock_status == "ADD_TO_CART":
                 print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
-                slack_data = {'content': "[" + current_time + "] " +  product_name + " In Stock @ BestBuy " + link}
+                f = open('bestbuy.txt', 'a')
+                f.write("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link + "\n")
+                f.close()
+                slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " +  product_name + " In Stock @ BestBuy " + link}
                 if stockdict.get(sku) == 'False':
-                    response = requests.post(
-                    webhook_url, data=json.dumps(slack_data),
-                    headers={'Content-Type': 'application/json'})
+                    send_message(slack_data)
                 stockdict.update({sku: 'True'})
                 #print(stockdict)
 
@@ -208,7 +236,7 @@ class Walmart:
         self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         page = requests.get(url)
         tree = html.fromstring(page.content)
         title_raw = tree.xpath("//h1[@class='prod-ProductTitle font-normal']")
@@ -216,16 +244,14 @@ class Walmart:
         price_raw = tree.xpath("//span[@class='price display-inline-block arrange-fit price price--stylized']//span[@class='price-characteristic']")
         price = price_raw[0].text
         if page.status_code == 200:
-            if "Add to cart" in page.text:
+            if "Add to cart" in page.text and int(price) < MAX_PRICE:
                 print("[" + current_time + "] " + "In Stock: (Walmart.com) " + title + " for $" + price + " - " + url)
-                slack_data = {'content': "[" + current_time + "] " + title + " in stock at Walmart for $" + price + " - " + url}
+                f = open('walmart.txt', 'a')
+                f.write("[" + current_time + "] " + "In Stock: (Walmart.com) " + title + " for $" + price + " - " + url + "\n")
+                f.close()
+                slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " + title + " in stock at Walmart for $" + price + " - " + url}
                 if stockdict.get(url) == 'False':
-                    try:
-                        response = requests.post(
-                        webhook_url, data=json.dumps(slack_data),
-                        headers={'Content-Type': 'application/json'})
-                    except:
-                        print("Webhook sending failed. Invalid URL configured.")
+                    send_message(slack_data)
                 stockdict.update({url: 'True'})
             else: 
                 print("[" + current_time + "] " + "Sold Out: (Walmart.com) " + title)
@@ -238,16 +264,17 @@ class BH:
         self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S")
         page = requests.get(url)
         if page.status_code == 200:
             if "Add to Cart" in page.text:
                 print("[" + current_time + "] " + "In Stock: (bhphotovideo.com) " + url)
-                slack_data = {'content': "[" + current_time + "] " + url + " in stock at B&H"}
+                f = open('bh.txt', 'a')
+                f.write("[" + current_time + "] " + "In Stock: (bhphotovideo.com) " + url + "\n")
+                f.close()
+                slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " + url + " in stock at B&H"}
                 if stockdict.get(url) == 'False':
-                    response = requests.post(
-                                             webhook_url, data=json.dumps(slack_data),
-                                             headers={'Content-Type': 'application/json'})
+                    send_message(slack_data)
                 stockdict.update({url: 'True'})
             else:
                 print("[" + current_time + "] " + "Sold Out: (bhphotovideo.com) " + url)
@@ -323,7 +350,7 @@ def amzfunc(url):
             Amazon(url, hook)
         except:
             print("Some error ocurred parsing Amazon")
-        time.sleep(10)
+        time.sleep(random.randint(10,60))
 
 def gamestopfunc(url):
     while True:
@@ -332,7 +359,7 @@ def gamestopfunc(url):
             Gamestop(url, hook)
         except:
             print("Some error ocurred parsing Gamestop")
-        time.sleep(10)
+        time.sleep(random.randint(10,60))
 
 
 def targetfunc(url):
@@ -342,7 +369,7 @@ def targetfunc(url):
             Target(url, hook)
         except:
             print("Some error ocurred parsing Target")
-        time.sleep(10)
+        time.sleep(random.randint(10,60))
 
 def bhfunc(url):
     while True:
@@ -351,7 +378,7 @@ def bhfunc(url):
             BH(url, hook)
         except:
             print("Some error ocurred parsing BH Photo")
-        time.sleep(10)
+        time.sleep(random.randint(10,60))
 
 def bestbuyfunc(sku):
     while True:
@@ -360,7 +387,7 @@ def bestbuyfunc(sku):
             BestBuy(sku, hook)
         except:
             print("Some error ocurred parsing Best Buy")
-        time.sleep(10)
+        time.sleep(random.randint(10,60))
 
 def walmartfunc(url):
     while True:
@@ -369,7 +396,7 @@ def walmartfunc(url):
             Walmart(url, hook)
         except:
             print("Some error ocurred parsing WalMart")
-        time.sleep(10)
+        time.sleep(random.randint(10,60))
 
 
 # MAIN EXECUTION
