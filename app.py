@@ -113,7 +113,7 @@ class Amazon:
                 print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
                 slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " +  title + " in stock at Amazon - " + url}
                 if stockdict.get(url) == 'False':
-                    send_message(slack_data)                    
+                    send_email("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)                    
                 stockdict.update({url: 'True'})
             else:
                 print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
@@ -136,7 +136,6 @@ class Gamestop:
         options.add_argument("headless")
         driver = webdriver.Chrome(executable_path=driver_path, chrome_options=options)
         driver.get(url)
-
         html = driver.page_source
 
         status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
@@ -149,7 +148,7 @@ class Gamestop:
             print("[" + current_time + "] " + "In Stock: (Gamestop.com) " + title + " - " + url)
             slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " +  title + " in stock at Gamestop - " + url}
             if stockdict.get(url) == 'False':
-                send_message(slack_data)
+                send_email("[" + current_time + "] " + "In Stock: (Gamestop.com) " + title + " - " + url)
             stockdict.update({url: 'True'})
         else:
             print("[" + current_time + "] " + "Sold Out: (Gamestop.com) " + title)
@@ -181,7 +180,7 @@ class Target:
             print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
             slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " +  title + " in stock at Target - " + url}
             if stockdict.get(url) == 'False':
-                send_message(slack_data)
+                send_email("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
             stockdict.update({url: 'True'})
         #print(stockdict)
 
@@ -214,9 +213,9 @@ class BestBuy:
         elif stock_status == "CHECK_STORES":
             print(product_name + " sold out @ BestBuy (check stores status)")
             stockdict.update({sku: 'False'})
-            f = open('bestbuy.txt', 'a')
-            f.write("[" + current_time + "] " + product_name + " sold out @ BestBuy (check stores status \n")
-            f.close()
+#            f = open('bestbuy.txt', 'a')
+#            f.write("[" + current_time + "] " + product_name + " sold out @ BestBuy (check stores status \n")
+#            f.close()
         else: 
             if stock_status == "ADD_TO_CART":
                 print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
@@ -225,7 +224,7 @@ class BestBuy:
                 f.close()
                 slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " +  product_name + " In Stock @ BestBuy " + link}
                 if stockdict.get(sku) == 'False':
-                    send_message(slack_data)
+                    send_email("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
                 stockdict.update({sku: 'True'})
                 #print(stockdict)
 
@@ -251,7 +250,7 @@ class Walmart:
                 f.close()
                 slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " + title + " in stock at Walmart for $" + price + " - " + url}
                 if stockdict.get(url) == 'False':
-                    send_message(slack_data)
+                    send_email("[" + current_time + "] " + "In Stock: (Walmart.com) " + title + " for $" + price + " - " + url)
                 stockdict.update({url: 'True'})
             else: 
                 print("[" + current_time + "] " + "Sold Out: (Walmart.com) " + title)
@@ -274,7 +273,7 @@ class BH:
                 f.close()
                 slack_data = {'text' :"In Stock: " + url, 'content': "[" + current_time + "] " + url + " in stock at B&H"}
                 if stockdict.get(url) == 'False':
-                    send_message(slack_data)
+                    send_email("[" + current_time + "] " + "In Stock: (bhphotovideo.com) " + url)
                 stockdict.update({url: 'True'})
             else:
                 print("[" + current_time + "] " + "Sold Out: (bhphotovideo.com) " + url)
@@ -406,10 +405,12 @@ for url in amazonlist:
     t.start()
     time.sleep(0.5)
 
-for url in gamestoplist:
-    t = Thread(target=gamestopfunc, args=(url,))
-    t.start()
-    time.sleep(0.5)
+#for url in gamestoplist: 
+#    t = Thread(target=gamestopfunc, args=(url,))
+#    t.start()
+#    time.sleep(0.5)
+
+
 
 for url in targetlist:
     t = Thread(target=targetfunc, args=(url,))
@@ -430,3 +431,4 @@ for url in walmartlist:
     t = Thread(target=walmartfunc, args=(url,))
     t.start()
     time.sleep(0.5)
+
