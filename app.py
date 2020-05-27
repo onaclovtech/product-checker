@@ -61,7 +61,7 @@ def send_email(message):
                     subject='In Stock',
                     html_content=message    )
     try:
-        sg = SendGridAPIClient("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")
+        sg = SendGridAPIClient(key)
         response = sg.send(message)
     except Exception as e:
         print ("Error Sending Message ")
